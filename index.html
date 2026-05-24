@@ -15,7 +15,7 @@
     }
     .container {
       background: #2a2a3d; border-radius: 24px; padding: 30px;
-      width: 100%; max-width: 750px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      width: 100%; max-width: 800px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
     }
     h1 { text-align: center; margin-bottom: 25px; color: #a78bfa; }
     .action-panel {
@@ -56,20 +56,33 @@
     }
     .user-badge {
       background: #374151; padding: 6px 14px; border-radius: 20px;
-      font-size: 14px; color: #d1d5db;
+      font-size: 14px; color: #d1d5db; display: flex; align-items: center; gap: 6px;
     }
     .user-badge.self { background: #7c3aed; color: white; }
+    .kick-btn {
+      background: transparent; border: none; color: #f87171;
+      font-weight: bold; cursor: pointer; font-size: 16px; line-height: 1;
+      padding: 0 2px;
+    }
+    .kick-btn:hover { color: #ef4444; }
     .chat-box {
       background: #12121f; border-radius: 16px; height: 350px;
       overflow-y: auto; padding: 15px; margin-bottom: 15px;
       display: flex; flex-direction: column; gap: 10px;
     }
-    .message { max-width: 75%; padding: 10px 16px; border-radius: 18px; line-height: 1.4; }
+    .message {
+      max-width: 75%; padding: 10px 16px; border-radius: 18px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;      /* 自动换行 */
+      word-break: break-word;      /* 长单词/连续字符断开 */
+      white-space: pre-wrap;       /* 保留空格并换行 */
+    }
     .message.sent { align-self: flex-end; background: #7c3aed; color: white; }
     .message.received { align-self: flex-start; background: #374151; color: #e5e7eb; }
     .message.system {
       align-self: center; background: #1f2937; color: #9ca3af;
       font-style: italic; font-size: 13px; max-width: 90%;
+      word-break: normal;
     }
     .sender-name { font-size: 12px; margin-bottom: 4px; opacity: 0.8; display: block; }
     .input-section { display: flex; gap: 10px; }
@@ -98,7 +111,7 @@
 </head>
 <body>
 <div class="container">
-  <h1>多人房间</h1>
+  <h1> 多人房间</h1>
 
   <!-- 操作区 -->
   <div class="action-panel" id="actionPanel">
@@ -108,7 +121,7 @@
     <button class="btn btn-leave" id="leaveBtn" disabled>退出房间</button>
   </div>
 
-  <!-- 我的信息 & 邀请链接（房主可见） -->
+  <!-- 我的信息 & 邀请链接 -->
   <div class="info-box">
     <div>
       <span style="color:#9ca3af;">🆔 我的ID：</span>
@@ -138,7 +151,7 @@
     <button class="send-btn" id="sendBtn" disabled onclick="sendMessage()">发送</button>
   </div>
   <p class="footer-note">
-    ⚡ PeerJS 公共信令云 · 房主分享邀请链接即可加入 · 建议 ≤8 人
+    
   </p>
 </div>
 
@@ -150,7 +163,7 @@
   let isHost = false;
   const connections = new Map(); // key: remotePeerId, value: DataConnection
 
-  // UI
+  // UI 元素
   const hostIdInput = document.getElementById('hostIdInput');
   const createBtn = document.getElementById('createBtn');
   const joinBtn = document.getElementById('joinBtn');
@@ -162,6 +175,11 @@
   const chatBox = document.getElementById('chatBox');
   const messageInput = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
+
+  // 用于标题闪烁提醒的变量
+  let originalTitle = document.title;
+  let unread = false;
+  let flashInterval = null;
 
   // ---------- 辅助函数 ----------
   function addSystemMsg(text) {
@@ -182,78 +200,166 @@
     div.appendChild(document.createTextNode(text));
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
+
+    // 标题闪烁提示：如果页面不可见且不是自己发的消息
+    if (!isSelf && document.hidden) {
+      startTitleFlash();
+    }
   }
 
+  function startTitleFlash() {
+    if (unread) return;
+    unread = true;
+    flashInterval = setInterval(() => {
+      document.title = document.title === originalTitle ? '🔔 新消息！' : originalTitle;
+    }, 1000);
+  }
+
+  function stopTitleFlash() {
+    if (flashInterval) {
+      clearInterval(flashInterval);
+      flashInterval = null;
+    }
+    document.title = originalTitle;
+    unread = false;
+  }
+
+  // 页面重新可见时停止闪烁
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && unread) {
+      stopTitleFlash();
+    }
+  });
+
+  // 更新在线成员显示（包含踢人按钮）
   function updateUserList() {
     userListDiv.innerHTML = '';
+    // 房主自己
     const selfBadge = document.createElement('span');
     selfBadge.className = 'user-badge self';
     selfBadge.textContent = `${nickname} (我)`;
     userListDiv.appendChild(selfBadge);
+
+    // 其他成员
     for (let [peerId, conn] of connections) {
+      if (!conn.open) continue;
       const badge = document.createElement('span');
       badge.className = 'user-badge';
-      badge.textContent = conn.metadata?.nickname || peerId.substring(0, 8);
+      const remoteNick = conn.metadata?.nickname || peerId.substring(0, 8);
+      badge.textContent = remoteNick;
+
+      // 房主可见的踢人按钮
+      if (isHost) {
+        const kickBtn = document.createElement('button');
+        kickBtn.className = 'kick-btn';
+        kickBtn.textContent = '✕';
+        kickBtn.title = '踢出该成员';
+        kickBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (confirm(`确定要踢出 ${remoteNick} 吗？`)) {
+            kickMember(peerId, remoteNick);
+          }
+        };
+        badge.appendChild(kickBtn);
+      }
       userListDiv.appendChild(badge);
     }
   }
 
-  function broadcastMessage(msg) {
-    const data = { type: 'chat', sender: nickname, text: msg };
-    for (let conn of connections.values()) {
-      if (conn.open) conn.send(data);
+  // 房主踢人
+  function kickMember(peerId, remoteNick) {
+    const conn = connections.get(peerId);
+    if (!conn) return;
+
+    // 1. 发送踢出指令
+    try { conn.send({ type: 'kick' }); } catch (e) {}
+
+    // 2. 断开与该成员的连接
+    conn.close();
+    connections.delete(peerId);
+
+    // 3. 广播给其他成员：某某被踢出
+    const kickInfo = { type: 'user-kicked', id: peerId, nickname: remoteNick };
+    for (let [id, c] of connections) {
+      if (c.open) c.send(kickInfo);
     }
-    addChatMsg(nickname, msg, true);
+
+    addSystemMsg(`你已将 ${remoteNick} 踢出房间`);
+    updateUserList();
   }
 
-  function sendIntro(conn) {
-    conn.send({ type: 'intro', nickname: nickname });
-  }
-
-  // ---------- 连接处理（核心全连接逻辑） ----------
+  // ---------- 连接处理 ----------
   function setupConnection(conn) {
     conn.on('open', () => {
-      sendIntro(conn);
+      // 发送自我介绍
+      conn.send({ type: 'intro', nickname: nickname });
 
       if (isHost) {
-        // 房主处理新连接
-        connections.set(conn.peer, conn);
-        updateUserList();
-
-        // 发送成员列表给新成员（包含房主自己 + 已有所有成员）
-        const memberList = [{ id: myPeerId, nickname: nickname }];
-        for (let [id, c] of connections) {
-          if (c.open && id !== conn.peer) {
-            memberList.push({ id: id, nickname: c.metadata?.nickname || id.substring(0, 8) });
-          }
-        }
-        conn.send({ type: 'member-list', members: memberList });
-
-        // 广播新成员给老成员，让他们主动连接
-        const newMemberInfo = {
-          type: 'new-member',
-          id: conn.peer,
-          nickname: conn.metadata?.nickname || conn.peer.substring(0, 8)
-        };
-        for (let [id, c] of connections) {
-          if (id !== conn.peer && c.open) c.send(newMemberInfo);
-        }
+        // 房主处理新连接：暂不加入 connections，等收到 intro 后检查昵称重复
+        // 先保存一下，待昵称验证通过再正式添加
+        // 注意：intro 会在 data 监听中处理，所以这里不做操作
       } else {
-        // 非房主：直接保存连接
+        // 非房主收到连接，直接保存
         connections.set(conn.peer, conn);
         updateUserList();
       }
     });
 
     conn.on('data', (data) => {
+      // 处理自我介绍
       if (data.type === 'intro') {
         conn.metadata = { nickname: data.nickname };
-        updateUserList();
-        addSystemMsg(`${data.nickname} 加入了房间`);
-      } else if (data.type === 'chat') {
+
+        if (isHost) {
+          // 房主检查昵称是否重复（包括自己）
+          const newNick = data.nickname;
+          const existingNicks = new Set([nickname]); // 房主昵称
+          for (let [, c] of connections) {
+            if (c.open && c.metadata?.nickname) existingNicks.add(c.metadata.nickname);
+          }
+          if (existingNicks.has(newNick)) {
+            // 昵称重复，拒绝连接
+            conn.send({ type: 'name-rejected', reason: '昵称已被房间内其他成员使用，请更换昵称后重试' });
+            conn.close();
+            addSystemMsg(`${newNick} 尝试加入，但昵称重复已被拒绝`);
+            return;
+          }
+
+          // 昵称可用，正式接受
+          connections.set(conn.peer, conn);
+          updateUserList();
+          addSystemMsg(`${newNick} 加入了房间`);
+
+          // 发送成员列表给新成员
+          const memberList = [{ id: myPeerId, nickname: nickname }];
+          for (let [id, c] of connections) {
+            if (c.open && id !== conn.peer) {
+              memberList.push({ id: id, nickname: c.metadata?.nickname || id.substring(0, 8) });
+            }
+          }
+          conn.send({ type: 'member-list', members: memberList });
+
+          // 广播新成员加入给其他老成员
+          const newMemberInfo = {
+            type: 'new-member',
+            id: conn.peer,
+            nickname: newNick
+          };
+          for (let [id, c] of connections) {
+            if (id !== conn.peer && c.open) c.send(newMemberInfo);
+          }
+        } else {
+          // 非房主收到 intro（可能是别的成员发来），更新 metadata
+          connections.set(conn.peer, conn); // 确保存在
+          updateUserList();
+          addSystemMsg(`${data.nickname} 加入了房间`);
+        }
+      }
+      else if (data.type === 'chat') {
         addChatMsg(data.sender, data.text, false);
-      } else if (data.type === 'member-list') {
-        // 新加入者收到房主发来的成员列表，连接所有人（跳过自己）
+      }
+      else if (data.type === 'member-list') {
+        // 新加入者收到房主发来的成员列表，连接所有人
         data.members.forEach(member => {
           if (member.id === myPeerId || connections.has(member.id)) return;
           const newConn = peer.connect(member.id, {
@@ -263,8 +369,9 @@
           setupConnection(newConn);
         });
         updateUserList();
-      } else if (data.type === 'new-member') {
-        // 老成员收到新成员通知，主动连接新成员
+      }
+      else if (data.type === 'new-member') {
+        // 老成员收到新成员通知，主动连接
         if (data.id === myPeerId || connections.has(data.id)) return;
         const newConn = peer.connect(data.id, {
           reliable: true,
@@ -272,12 +379,37 @@
         });
         setupConnection(newConn);
       }
+      else if (data.type === 'kick') {
+        // 被房主踢出
+        alert('你已被房主踢出房间');
+        leaveRoom();
+      }
+      else if (data.type === 'user-kicked') {
+        // 其他成员收到：断开与被踢者的连接
+        const kickedId = data.id;
+        if (connections.has(kickedId)) {
+          connections.get(kickedId).close();
+          connections.delete(kickedId);
+          updateUserList();
+          addSystemMsg(`${data.nickname} 被房主踢出了房间`);
+        }
+      }
+      else if (data.type === 'name-rejected') {
+        alert(`加入失败：${data.reason}`);
+        // 断开连接，清理
+        conn.close();
+        if (peer) peer.destroy();
+        leaveRoom();
+      }
     });
 
     conn.on('close', () => {
-      addSystemMsg(`${conn.metadata?.nickname || conn.peer.substring(0,8)} 离开了房间`);
-      connections.delete(conn.peer);
-      updateUserList();
+      const remoteNick = conn.metadata?.nickname || conn.peer.substring(0, 8);
+      if (connections.has(conn.peer)) {
+        addSystemMsg(`${remoteNick} 离开了房间`);
+        connections.delete(conn.peer);
+        updateUserList();
+      }
     });
 
     conn.on('error', (err) => {
@@ -288,18 +420,17 @@
     });
   }
 
-  // ---------- 创建房间（房主） ----------
+  // ---------- 创建 / 加入 / 离开 ----------
   function createRoom() {
-    leaveRoom(); // 清空旧状态
+    leaveRoom();
     nickname = prompt('设置你的昵称:', nickname) || nickname;
-    peer = new Peer(); // 随机 ID
+    peer = new Peer();
 
     peer.on('open', (id) => {
       myPeerId = id;
       myPeerIdSpan.textContent = id;
       isHost = true;
 
-      // 生成邀请链接
       const inviteUrl = `${location.origin}${location.pathname}?host=${id}`;
       inviteLinkInput.value = inviteUrl;
       inviteSection.style.display = 'flex';
@@ -307,7 +438,6 @@
       addSystemMsg(`房间已创建，你的 ID: ${id}`);
       addSystemMsg(`将邀请链接发给朋友即可加入`);
 
-      // UI 状态
       createBtn.disabled = true;
       joinBtn.disabled = true;
       leaveBtn.disabled = false;
@@ -317,8 +447,7 @@
     });
 
     peer.on('connection', (conn) => {
-      if (isHost) setupConnection(conn);
-      else setupConnection(conn); // 非房主也可能收到连接（安全起见）
+      setupConnection(conn);
     });
 
     peer.on('error', (err) => {
@@ -332,19 +461,14 @@
     });
   }
 
-  // ---------- 加入房间（输入房主 ID 或通过链接自动加入） ----------
   function joinRoom(hostId) {
     leaveRoom();
-    if (!hostId) {
-      hostId = hostIdInput.value.trim();
-    }
-    if (!hostId) {
-      alert('请输入房主的 Peer ID 或通过邀请链接加入');
-      return;
-    }
+    if (!hostId) hostId = hostIdInput.value.trim();
+    if (!hostId) return alert('请输入房主的 Peer ID 或通过邀请链接加入');
+
     nickname = prompt('设置你的昵称:', nickname) || nickname;
 
-    peer = new Peer(); // 随机 ID
+    peer = new Peer();
     peer.on('open', (myId) => {
       myPeerId = myId;
       myPeerIdSpan.textContent = myId;
@@ -358,7 +482,6 @@
       });
       setupConnection(conn);
 
-      // UI 状态
       createBtn.disabled = true;
       joinBtn.disabled = true;
       leaveBtn.disabled = false;
@@ -368,7 +491,7 @@
     });
 
     peer.on('connection', (conn) => {
-      if (!isHost) setupConnection(conn);
+      setupConnection(conn);
     });
 
     peer.on('error', (err) => {
@@ -378,13 +501,13 @@
   }
 
   function leaveRoom() {
+    stopTitleFlash();
     for (let conn of connections.values()) conn.close();
     connections.clear();
     if (peer) {
       peer.destroy();
       peer = null;
     }
-    // 重置 UI
     myPeerIdSpan.textContent = '——';
     inviteSection.style.display = 'none';
     userListDiv.innerHTML = '<span style="color:#6b7280;">暂无</span>';
@@ -412,6 +535,14 @@
     messageInput.value = '';
   };
 
+  function broadcastMessage(msg) {
+    const data = { type: 'chat', sender: nickname, text: msg };
+    for (let conn of connections.values()) {
+      if (conn.open) conn.send(data);
+    }
+    addChatMsg(nickname, msg, true);
+  }
+
   window.copyId = function() {
     const id = myPeerIdSpan.textContent;
     if (!id || id === '——') return;
@@ -419,20 +550,19 @@
   };
 
   window.copyInviteLink = function() {
-    navigator.clipboard.writeText(inviteLinkInput.value).then(() => alert('邀请链接已复制，快发给朋友吧！'));
+    navigator.clipboard.writeText(inviteLinkInput.value).then(() => alert('邀请链接已复制'));
   };
 
   messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !sendBtn.disabled) sendMessage();
   });
 
-  // 自动检测 URL 中的 host 参数，自动加入
+  // 自动加入（URL 参数）
   (function autoJoinFromUrl() {
     const params = new URLSearchParams(location.search);
     const hostId = params.get('host');
     if (hostId) {
       hostIdInput.value = hostId;
-      // 延迟一小会儿确保 DOM 加载完毕
       setTimeout(() => joinRoom(hostId), 500);
     }
   })();
