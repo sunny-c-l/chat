@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>多人房间</title>
   <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
-  <!-- 表情选择器 -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
-  <!-- Font Awesome 图标 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
@@ -215,6 +213,20 @@
       flex-direction: column;
       gap: 12px;
     }
+    .message-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .message-row.sent { justify-content: flex-end; }
+    .message-row.received { justify-content: flex-start; }
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
     .message {
       max-width: 75%;
       padding: 10px 16px;
@@ -223,9 +235,10 @@
       word-wrap: break-word;
       white-space: pre-wrap;
       font-size: 14px;
+      position: relative;
     }
-    .message.sent { align-self: flex-end; background: var(--msg-sent); color: var(--text); }
-    .message.received { align-self: flex-start; background: var(--msg-received); color: var(--text); border: 1px solid var(--border); }
+    .message.sent { background: var(--msg-sent); color: var(--text); }
+    .message.received { background: var(--msg-received); color: var(--text); border: 1px solid var(--border); }
     .message.system {
       align-self: center;
       background: var(--system-bg);
@@ -242,12 +255,10 @@
       border-radius: 12px;
       margin-top: 4px;
       object-fit: cover;
-      cursor: pointer;               /* 鼠标变手型，暗示可点击 */
+      cursor: pointer;
       transition: transform 0.2s;
     }
-    .message img:hover {
-      transform: scale(1.02);
-    }
+    .message img:hover { transform: scale(1.02); }
     .file-download {
       display: inline-flex;
       align-items: center;
@@ -260,13 +271,26 @@
       margin-top: 4px;
       font-size: 13px;
     }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.2s;
+    }
 
-    /* 图片放大浮层 */
     .image-lightbox {
       position: fixed;
       top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
+      width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.85);
       display: flex;
       align-items: center;
@@ -402,6 +426,16 @@
           <span style="color: var(--text-secondary);">暂无</span>
         </div>
       </div>
+
+      <div style="margin-top: auto;">
+        <label style="color: var(--text-secondary); display:block; margin-bottom:6px;">🧑 头像设置</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img id="avatarPreview" src="" alt="头像" style="width:40px; height:40px; border-radius:50%; object-fit:cover; background: #ccc;">
+          <button class="btn" style="padding:4px 10px; font-size:12px;" onclick="document.getElementById('avatarInput').click()">上传</button>
+          <button class="btn" style="padding:4px 10px; font-size:12px;" onclick="generateRandomAvatar()">随机</button>
+          <input type="file" id="avatarInput" accept="image/*" style="display:none">
+        </div>
+      </div>
     </div>
 
     <div class="chat-area">
@@ -428,13 +462,76 @@
   <script>
     (() => {
       const PING_INTERVAL = 5000;
-      const CHUNK_SIZE = 15 * 1024;
+      const CHUNK_SIZE = 64 * 1024; // 64KB per chunk for faster transfer
 
       let peer = null, myPeerId = null;
       let nickname = 'User' + Math.floor(Math.random()*1000);
       let isHost = false;
       const connections = new Map();
       const fileBuffers = new Map();
+
+      // 头像：默认生成随机图片
+      let myAvatarDataUrl = generateRandomAvatar();
+      const avatarPreview = document.getElementById('avatarPreview');
+      avatarPreview.src = myAvatarDataUrl;
+
+      // 生成类似 GitHub 的随机颜色块头像 (无文字，纯色块)
+      function generateRandomAvatar() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 100; canvas.height = 100;
+        const ctx = canvas.getContext('2d');
+        const hue = Math.floor(Math.random() * 360);
+        const colors = [
+          `hsl(${hue}, 70%, 60%)`,
+          `hsl(${hue}, 80%, 70%)`,
+          `hsl(${hue}, 60%, 50%)`,
+          `hsl(${hue}, 90%, 80%)`
+        ];
+        // 画随机几何图形
+        for (let i = 0; i < 12; i++) {
+          ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+          const x = Math.random() * 100, y = Math.random() * 100;
+          const size = Math.random() * 40 + 10;
+          ctx.beginPath();
+          if (Math.random() > 0.5) {
+            ctx.arc(x, y, size/2, 0, Math.PI*2);
+          } else {
+            ctx.fillRect(x - size/2, y - size/2, size, size);
+          }
+          ctx.fill();
+        }
+        return canvas.toDataURL('image/png');
+      }
+
+      // 监听头像上传
+      document.getElementById('avatarInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          // 缩放图片到 100x100 以内
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const max = 100;
+            let w = img.width, h = img.height;
+            if (w > h) { h = h * max / w; w = max; }
+            else { w = w * max / h; h = max; }
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            myAvatarDataUrl = canvas.toDataURL('image/png');
+            avatarPreview.src = myAvatarDataUrl;
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      window.generateRandomAvatar = () => {
+        myAvatarDataUrl = generateRandomAvatar();
+        avatarPreview.src = myAvatarDataUrl;
+      };
 
       const $ = id => document.getElementById(id);
       const hostIdInput = $('hostIdInput');
@@ -485,39 +582,81 @@
         const d = document.createElement('div'); d.className='message system'; d.textContent=text;
         chatBox.appendChild(d); chatBox.scrollTop = chatBox.scrollHeight;
       }
-      function addChatMsg(sender, text, isSelf) {
-        const d = document.createElement('div'); d.className=`message ${isSelf?'sent':'received'}`;
+      function addChatMsg(sender, text, avatar, isSelf) {
+        const row = document.createElement('div');
+        row.className = `message-row ${isSelf ? 'sent' : 'received'}`;
+        const img = document.createElement('img');
+        img.src = avatar || generateRandomAvatar();
+        img.className = 'avatar';
+        const bubble = document.createElement('div');
+        bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
         const nameSpan = document.createElement('span'); nameSpan.className='sender-name'; nameSpan.textContent=sender;
-        d.appendChild(nameSpan);
+        bubble.appendChild(nameSpan);
         const content = document.createElement('span'); content.textContent = text;
-        d.appendChild(content);
-        chatBox.appendChild(d); chatBox.scrollTop = chatBox.scrollHeight;
+        bubble.appendChild(content);
+        if (isSelf) {
+          row.appendChild(bubble);
+          row.appendChild(img);
+        } else {
+          row.appendChild(img);
+          row.appendChild(bubble);
+        }
+        chatBox.appendChild(row);
+        chatBox.scrollTop = chatBox.scrollHeight;
         if (!isSelf && document.hidden) startTitleFlash();
       }
-      function addImageMsg(sender, dataUrl, isSelf) {
-        const d = document.createElement('div'); d.className=`message ${isSelf?'sent':'received'}`;
+      function addImageMsg(sender, dataUrl, avatar, isSelf) {
+        const row = document.createElement('div');
+        row.className = `message-row ${isSelf ? 'sent' : 'received'}`;
+        const img = document.createElement('img');
+        img.src = avatar || generateRandomAvatar();
+        img.className = 'avatar';
+        const bubble = document.createElement('div');
+        bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
         const nameSpan = document.createElement('span'); nameSpan.className='sender-name'; nameSpan.textContent=sender;
-        d.appendChild(nameSpan);
-        const img = document.createElement('img'); img.src = dataUrl;
-        // 点击放大
-        img.addEventListener('click', () => showLightbox(dataUrl));
-        d.appendChild(img);
-        chatBox.appendChild(d); chatBox.scrollTop = chatBox.scrollHeight;
+        bubble.appendChild(nameSpan);
+        const image = document.createElement('img'); image.src = dataUrl;
+        image.addEventListener('click', () => showLightbox(dataUrl));
+        bubble.appendChild(image);
+        if (isSelf) {
+          row.appendChild(bubble);
+          row.appendChild(img);
+        } else {
+          row.appendChild(img);
+          row.appendChild(bubble);
+        }
+        chatBox.appendChild(row);
+        chatBox.scrollTop = chatBox.scrollHeight;
         if (!isSelf && document.hidden) startTitleFlash();
       }
-      function addFileMsg(sender, fileName, fileUrl, fileSize, isSelf) {
-        const d = document.createElement('div'); d.className=`message ${isSelf?'sent':'received'}`;
+      function addFileMsg(sender, fileName, fileUrl, fileSize, avatar, isSelf) {
+        const row = document.createElement('div');
+        row.className = `message-row ${isSelf ? 'sent' : 'received'}`;
+        const img = document.createElement('img');
+        img.src = avatar || generateRandomAvatar();
+        img.className = 'avatar';
+        const bubble = document.createElement('div');
+        bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
         const nameSpan = document.createElement('span'); nameSpan.className='sender-name'; nameSpan.textContent=sender;
-        d.appendChild(nameSpan);
+        bubble.appendChild(nameSpan);
         const link = document.createElement('a'); link.href=fileUrl; link.download=fileName; link.className='file-download';
-        link.textContent=`📄 ${fileName} (${formatSize(fileSize)})`; d.appendChild(link);
-        chatBox.appendChild(d); chatBox.scrollTop = chatBox.scrollHeight;
+        link.textContent=`📄 ${fileName} (${formatSize(fileSize)})`; bubble.appendChild(link);
+        if (isSelf) {
+          row.appendChild(bubble);
+          row.appendChild(img);
+        } else {
+          row.appendChild(img);
+          row.appendChild(bubble);
+        }
+        chatBox.appendChild(row);
+        chatBox.scrollTop = chatBox.scrollHeight;
         if (!isSelf && document.hidden) startTitleFlash();
       }
       function formatSize(bytes) {
         if (bytes < 1024) return bytes + ' B';
         else if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
-        else return (bytes/1048576).toFixed(1) + ' MB';
+        else if (bytes < 1048576*1024) return (bytes/1048576).toFixed(1) + ' MB';
+        else return (bytes/(1048576*1024)).toFixed(1) + ' GB';
       }
       function startTitleFlash() {
         if (unread) return; unread = true;
@@ -533,7 +672,6 @@
         if (!document.hidden && unread) stopTitleFlash();
       });
 
-      // 图片放大浮层
       function showLightbox(src) {
         const existing = document.querySelector('.image-lightbox');
         if (existing) existing.remove();
@@ -610,11 +748,32 @@
         }
       }
 
-      // 文件/图片发送（forceFile=true 表示即使图片也显示为文件）
+      // 文件/图片发送 (with progress)
       async function sendFile(file, forceFile = false) {
         const fileId = Date.now() + '-' + Math.random().toString(36).substr(2,6);
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+        // 创建进度条消息
+        const progressRow = document.createElement('div');
+        progressRow.className = 'message-row sent';
+        const bubble = document.createElement('div');
+        bubble.className = 'message sent';
+        bubble.innerHTML = `<span class="sender-name">${nickname}</span>
+          <div>📤 发送中: ${file.name} (${formatSize(file.size)})</div>
+          <div class="progress-bar"><div class="progress-fill" id="progress-${fileId}" style="width:0%"></div></div>`;
+        progressRow.appendChild(bubble);
+        const avatarImg = document.createElement('img');
+        avatarImg.src = myAvatarDataUrl;
+        avatarImg.className = 'avatar';
+        progressRow.appendChild(avatarImg);
+        chatBox.appendChild(progressRow);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        const updateProgress = (percent) => {
+          const fill = document.getElementById(`progress-${fileId}`);
+          if (fill) fill.style.width = percent + '%';
+        };
+
         const arrayBuffer = await file.arrayBuffer();
-        const totalChunks = Math.ceil(arrayBuffer.byteLength / CHUNK_SIZE);
         for (let i = 0; i < totalChunks; i++) {
           const start = i * CHUNK_SIZE;
           const end = Math.min(start + CHUNK_SIZE, arrayBuffer.byteLength);
@@ -625,19 +784,24 @@
             mimeType: file.type || 'application/octet-stream',
             chunkIndex: i, totalChunks,
             data: base64,
-            displayAsFile: forceFile       // 关键标记
+            displayAsFile: forceFile
           };
           for (let conn of connections.values()) if (conn.open) conn.send(msg);
+          updateProgress(((i+1)/totalChunks)*100);
+          // 让浏览器有机会更新 UI
+          await new Promise(r => setTimeout(r, 0));
         }
-        // 发送方自己的显示
+        // 发送完成，移除进度条消息，替换为最终消息
+        progressRow.remove();
         if (file.type.startsWith('image/') && !forceFile) {
           const reader = new FileReader();
-          reader.onload = () => addImageMsg(nickname, reader.result, true);
+          reader.onload = () => addImageMsg(nickname, reader.result, myAvatarDataUrl, true);
           reader.readAsDataURL(file);
         } else {
-          addFileMsg(nickname, file.name, '#', file.size, true);
+          addFileMsg(nickname, file.name, '#', file.size, myAvatarDataUrl, true);
         }
       }
+
       function arrayBufferToBase64(buffer) {
         let binary = '';
         const bytes = new Uint8Array(buffer);
@@ -650,14 +814,46 @@
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         return bytes.buffer;
       }
-      function handleFileChunkReceived(data, sender) {
+
+      function handleFileChunkReceived(data, sender, senderAvatar) {
         const { fileId, fileName, fileSize, mimeType, chunkIndex, totalChunks, data: base64, displayAsFile } = data;
         if (!fileBuffers.has(fileId)) {
-          fileBuffers.set(fileId, { fileName, fileSize, mimeType, chunks: new Map(), sender, displayAsFile });
+          fileBuffers.set(fileId, {
+            fileName, fileSize, mimeType,
+            chunks: new Map(),
+            totalChunks,
+            sender,
+            senderAvatar,
+            displayAsFile,
+            progressRow: null
+          });
+          // 创建接收进度条消息
+          const row = document.createElement('div');
+          row.className = 'message-row received';
+          const avatarImg = document.createElement('img');
+          avatarImg.src = senderAvatar || generateRandomAvatar();
+          avatarImg.className = 'avatar';
+          const bubble = document.createElement('div');
+          bubble.className = 'message received';
+          bubble.innerHTML = `<span class="sender-name">${sender}</span>
+            <div>📥 接收中: ${fileName} (${formatSize(fileSize)})</div>
+            <div class="progress-bar"><div class="progress-fill" id="recv-progress-${fileId}" style="width:0%"></div></div>`;
+          row.appendChild(avatarImg);
+          row.appendChild(bubble);
+          chatBox.appendChild(row);
+          chatBox.scrollTop = chatBox.scrollHeight;
+          fileBuffers.get(fileId).progressRow = row;
         }
         const buf = fileBuffers.get(fileId);
         buf.chunks.set(chunkIndex, base64);
+        // 更新进度
+        const percent = (buf.chunks.size / totalChunks) * 100;
+        const fill = document.getElementById(`recv-progress-${fileId}`);
+        if (fill) fill.style.width = percent + '%';
+
         if (buf.chunks.size === totalChunks) {
+          // 移除进度条消息
+          if (buf.progressRow) buf.progressRow.remove();
           const chunksArray = [];
           for (let i = 0; i < totalChunks; i++) chunksArray.push(base64ToArrayBuffer(buf.chunks.get(i)));
           const totalLength = chunksArray.reduce((acc, arr) => acc + arr.byteLength, 0);
@@ -666,11 +862,10 @@
           for (const arr of chunksArray) { merged.set(new Uint8Array(arr), offset); offset += arr.byteLength; }
           const blob = new Blob([merged], { type: mimeType });
           const url = URL.createObjectURL(blob);
-          // 根据标记决定显示图片还是文件
           if (mimeType.startsWith('image/') && !buf.displayAsFile) {
-            addImageMsg(buf.sender, url, false);
+            addImageMsg(sender, url, senderAvatar, false);
           } else {
-            addFileMsg(buf.sender, fileName, url, fileSize, false);
+            addFileMsg(sender, fileName, url, fileSize, senderAvatar, false);
           }
           fileBuffers.delete(fileId);
         }
@@ -711,26 +906,17 @@
         }
       });
 
-      // 按钮事件：图片按钮 forceFile=false，文件按钮 forceFile=true
       imageBtn.addEventListener('click', () => imageInput.click());
-      imageInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) sendFile(file, false);
-        imageInput.value = '';
-      });
+      imageInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (file) sendFile(file, false); imageInput.value=''; });
       fileBtn.addEventListener('click', () => fileInput.click());
-      fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) sendFile(file, true);
-        fileInput.value = '';
-      });
+      fileInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (file) sendFile(file, true); fileInput.value=''; });
 
-      // 连接处理
+      // 连接处理 (增加头像传递)
       function setupConnection(conn) {
         conn._receivedLeave = false;
         conn._heartbeatLost = false;
         conn.on('open', () => {
-          conn.send({type:'intro', nickname:nickname});
+          conn.send({type:'intro', nickname:nickname, avatar: myAvatarDataUrl});
           startHeartbeat(conn);
         });
         conn.on('data', data => {
@@ -742,7 +928,7 @@
             conn.close(); return;
           }
           if (data.type === 'intro') {
-            conn.metadata = { nickname: data.nickname };
+            conn.metadata = { nickname: data.nickname, avatar: data.avatar };
             if (isHost) {
               const newNick = data.nickname;
               const existNicks = new Set([nickname]);
@@ -755,21 +941,25 @@
               }
               connections.set(conn.peer, conn);
               updateUserList(); addSystemMsg(`${newNick} 加入了房间`);
-              const list = [{id:myPeerId,nickname:nickname}];
-              for (let [id,c] of connections) if (c.open && id !== conn.peer) list.push({id, nickname: c.metadata?.nickname || id.substring(0,8)});
+              const list = [{id:myPeerId, nickname:nickname, avatar: myAvatarDataUrl}];
+              for (let [id,c] of connections) if (c.open && id !== conn.peer) list.push({id, nickname: c.metadata?.nickname || id.substring(0,8), avatar: c.metadata?.avatar});
               conn.send({type:'member-list', members:list});
-              for (let [id,c] of connections) if (id !== conn.peer && c.open) c.send({type:'new-member', id:conn.peer, nickname:newNick});
+              for (let [id,c] of connections) if (id !== conn.peer && c.open) c.send({type:'new-member', id:conn.peer, nickname:newNick, avatar: myAvatarDataUrl});
             } else {
               connections.set(conn.peer, conn);
               updateUserList(); addSystemMsg(`${data.nickname} 加入了房间`);
             }
           }
-          else if (data.type === 'chat') addChatMsg(data.sender, data.text, false);
+          else if (data.type === 'chat') {
+            const senderAvatar = conn.metadata?.avatar;
+            addChatMsg(data.sender, data.text, senderAvatar, false);
+          }
           else if (data.type === 'member-list') {
             data.members.forEach(m => {
               if (m.id === myPeerId || connections.has(m.id)) return;
               const nc = peer.connect(m.id, {reliable:true, metadata:{nickname:nickname}});
               setupConnection(nc);
+              // 可以临时存储头像，等到 open 后再设置
             });
             updateUserList();
           }
@@ -792,7 +982,8 @@
           }
           else if (data.type === 'file') {
             const senderNick = conn.metadata?.nickname || conn.peer.substring(0,8);
-            handleFileChunkReceived(data, senderNick);
+            const senderAvatar = conn.metadata?.avatar;
+            handleFileChunkReceived(data, senderNick, senderAvatar);
           }
           else if (data.type === 'name-rejected') {
             alert(`加入失败：${data.reason}`);
@@ -822,7 +1013,6 @@
         conn.on('error', () => { if (conn.open) conn.close(); });
       }
 
-      // 房间操作
       function createRoom() {
         leaveRoom();
         nickname = prompt('设置昵称:', nickname) || nickname;
@@ -876,7 +1066,7 @@
         if (!msg.trim()) return;
         const data = {type:'chat', sender:nickname, text: msg};
         for (let conn of connections.values()) if (conn.open) conn.send(data);
-        addChatMsg(nickname, msg, true);
+        addChatMsg(nickname, msg, myAvatarDataUrl, true);
         messageInput.value = '';
         messageInput.style.height = 'auto';
       };
