@@ -35,8 +35,9 @@
       --shadow: 0 2px 12px rgba(0,0,0,0.08);
       --toolbar-bg: #f9f9f9;
     }
+    /* 系统深色模式（仅在没有手动设置时生效） */
     @media (prefers-color-scheme: dark) {
-      :root {
+      body:not(.light):not(.dark) {
         --bg: #1e1e2f;
         --surface: #2a2a3d;
         --border: #3f3f5e;
@@ -62,31 +63,7 @@
         --toolbar-bg: #1e1e2f;
       }
     }
-    body.light {
-      --bg: #f5f5f5;
-      --surface: #ffffff;
-      --border: #d0d0d0;
-      --text: #1a1a1a;
-      --text-secondary: #555;
-      --accent: #2b7a78;
-      --accent-hover: #1f5f5d;
-      --danger: #c0392b;
-      --danger-hover: #a93226;
-      --join: #27ae60;
-      --join-hover: #1e8449;
-      --chat-bg: #f0f2f5;
-      --msg-sent: #dcf8c6;
-      --msg-received: #ffffff;
-      --system-bg: #e9ecef;
-      --system-text: #6c757d;
-      --self-badge: #2b7a78;
-      --user-badge-bg: #e0e0e0;
-      --user-badge-text: #333;
-      --input-bg: #fff;
-      --input-border: #ccc;
-      --shadow: 0 2px 12px rgba(0,0,0,0.08);
-      --toolbar-bg: #f9f9f9;
-    }
+    /* 手动设置的深色模式（覆盖系统） */
     body.dark {
       --bg: #1e1e2f;
       --surface: #2a2a3d;
@@ -111,6 +88,32 @@
       --input-border: #3f3f5e;
       --shadow: 0 2px 12px rgba(0,0,0,0.4);
       --toolbar-bg: #1e1e2f;
+    }
+    /* 手动设置的浅色模式 */
+    body.light {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --border: #d0d0d0;
+      --text: #1a1a1a;
+      --text-secondary: #555;
+      --accent: #2b7a78;
+      --accent-hover: #1f5f5d;
+      --danger: #c0392b;
+      --danger-hover: #a93226;
+      --join: #27ae60;
+      --join-hover: #1e8449;
+      --chat-bg: #f0f2f5;
+      --msg-sent: #dcf8c6;
+      --msg-received: #ffffff;
+      --system-bg: #e9ecef;
+      --system-text: #6c757d;
+      --self-badge: #2b7a78;
+      --user-badge-bg: #e0e0e0;
+      --user-badge-text: #333;
+      --input-bg: #fff;
+      --input-border: #ccc;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --toolbar-bg: #f9f9f9;
     }
 
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -148,23 +151,17 @@
       background: var(--surface);
     }
     .sidebar h2 { font-size: 1.2rem; font-weight: 600; color: var(--text); }
-    .input-group { display: flex; flex-direction: column; gap: 8px; }
-    .input-group label { font-size: 0.85rem; color: var(--text-secondary); }
-    .input, .btn {
+    .btn {
       padding: 10px 14px;
       border-radius: 10px;
       font-size: 14px;
       outline: none;
-      border: 1px solid var(--input-border);
-      background: var(--input-bg);
-      color: var(--text);
-      transition: all 0.2s;
-    }
-    .input:focus { border-color: var(--accent); }
-    .btn {
       border: none;
       font-weight: 600;
       cursor: pointer;
+      background: var(--input-bg);
+      color: var(--text);
+      transition: all 0.2s;
     }
     .btn-accent { background: var(--accent); color: white; }
     .btn-accent:hover { background: var(--accent-hover); }
@@ -174,12 +171,6 @@
     .btn-danger:hover { background: var(--danger-hover); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .id-display { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .my-id-text {
-      font-family: monospace; background: var(--input-bg);
-      padding: 6px 12px; border-radius: 8px; font-size: 14px;
-      border: 1px solid var(--border); word-break: break-all;
-    }
     .invite-box { display: flex; flex-direction: column; gap: 6px; }
     .invite-url {
       background: var(--input-bg); border: 1px solid var(--border);
@@ -203,7 +194,6 @@
       display: flex;
       flex-direction: column;
       background: var(--chat-bg);
-      transition: background 0.3s;
     }
     .chat-messages {
       flex: 1;
@@ -302,7 +292,6 @@
       max-width: 90vw;
       max-height: 90vh;
       border-radius: 12px;
-      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
     }
 
     .toolbar {
@@ -388,7 +377,7 @@
     .github-link:hover { transform: scale(1.1); color: var(--accent); }
   </style>
 </head>
-<body class="light">
+<body> <!-- 初始不设置类名，由JS根据系统/存储设置 -->
   <div class="theme-toggle" id="themeToggle" title="切换深色/浅色模式">🌓</div>
   
   <a href="https://github.com/sunny-c-l/chat/" target="_blank" class="github-link" title="GitHub 仓库">
@@ -398,37 +387,27 @@
   <div class="container">
     <div class="sidebar">
       <h2>⚡ 房间控制</h2>
-      <div class="input-group">
-        <label>房主 Peer ID</label>
-        <input class="input" type="text" id="hostIdInput" placeholder="输入房主 ID（不填则创建）">
-      </div>
       <div style="display: flex; gap: 8px;">
         <button class="btn btn-accent" id="createBtn">🏠 创建房间</button>
         <button class="btn btn-join" id="joinBtn">🚪 加入房间</button>
       </div>
       <button class="btn btn-danger" id="leaveBtn" disabled>退出房间</button>
 
-      <div class="id-display">
-        <span style="color: var(--text-secondary);">🆔 我的ID：</span>
-        <span class="my-id-text" id="myPeerId">——</span>
-        <button class="btn" style="padding:4px 10px; font-size:12px;" onclick="copyId()">复制</button>
-      </div>
-
       <div class="invite-box" id="inviteSection" style="display:none;">
-        <label style="color: var(--text-secondary);">🔗 邀请链接</label>
+        <label style="color: var(--text-secondary); font-size:0.85rem;">🔗 邀请链接</label>
         <div class="invite-url" id="inviteLinkInput"></div>
         <button class="btn" style="padding:4px 10px; font-size:12px;" onclick="copyInviteLink()">复制链接</button>
       </div>
 
       <div>
-        <label style="color: var(--text-secondary); display:block; margin-bottom:6px;">👥 在线成员</label>
+        <label style="color: var(--text-secondary); font-size:0.85rem; display:block; margin-bottom:6px;">👥 在线成员</label>
         <div class="user-list" id="userList">
           <span style="color: var(--text-secondary);">暂无</span>
         </div>
       </div>
 
       <div style="margin-top: auto;">
-        <label style="color: var(--text-secondary); display:block; margin-bottom:6px;">🧑 头像设置</label>
+        <label style="color: var(--text-secondary); font-size:0.85rem; display:block; margin-bottom:6px;">🧑 头像设置</label>
         <div style="display: flex; align-items: center; gap: 8px;">
           <img id="avatarPreview" src="" alt="头像" style="width:40px; height:40px; border-radius:50%; object-fit:cover; background: #ccc;">
           <button class="btn" style="padding:4px 10px; font-size:12px;" onclick="document.getElementById('avatarInput').click()">上传</button>
@@ -462,7 +441,8 @@
   <script>
     (() => {
       const PING_INTERVAL = 5000;
-      const CHUNK_SIZE = 64 * 1024; // 64KB per chunk for faster transfer
+      const SAFE_CHUNK_SIZE = 15 * 1024; // 15KB
+      const CONCURRENT_CHUNKS = 4;        // 并发发送分片数
 
       let peer = null, myPeerId = null;
       let nickname = 'User' + Math.floor(Math.random()*1000);
@@ -470,12 +450,37 @@
       const connections = new Map();
       const fileBuffers = new Map();
 
-      // 头像：默认生成随机图片
+      // ---- 主题初始化（跟随系统，按钮直接切换深/浅） ----
+      function applyTheme(mode) {
+        document.body.classList.remove('light', 'dark');
+        if (mode === 'dark') document.body.classList.add('dark');
+        else if (mode === 'light') document.body.classList.add('light');
+        // 如果 mode 为 null，则移除所有类，CSS 媒体查询自动生效
+      }
+      const savedTheme = localStorage.getItem('chat-theme'); // 'dark' or 'light' or null
+      if (savedTheme) {
+        applyTheme(savedTheme);
+      } else {
+        // 不设置类名，让 CSS 根据 prefers-color-scheme 自动决定
+        document.body.classList.remove('light', 'dark');
+      }
+
+      const themeToggle = document.getElementById('themeToggle');
+      themeToggle.addEventListener('click', () => {
+        if (document.body.classList.contains('dark')) {
+          applyTheme('light');
+          localStorage.setItem('chat-theme', 'light');
+        } else {
+          applyTheme('dark');
+          localStorage.setItem('chat-theme', 'dark');
+        }
+      });
+
+      // 头像生成
       let myAvatarDataUrl = generateRandomAvatar();
       const avatarPreview = document.getElementById('avatarPreview');
       avatarPreview.src = myAvatarDataUrl;
 
-      // 生成类似 GitHub 的随机颜色块头像 (无文字，纯色块)
       function generateRandomAvatar() {
         const canvas = document.createElement('canvas');
         canvas.width = 100; canvas.height = 100;
@@ -487,29 +492,27 @@
           `hsl(${hue}, 60%, 50%)`,
           `hsl(${hue}, 90%, 80%)`
         ];
-        // 画随机几何图形
         for (let i = 0; i < 12; i++) {
           ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
           const x = Math.random() * 100, y = Math.random() * 100;
           const size = Math.random() * 40 + 10;
           ctx.beginPath();
-          if (Math.random() > 0.5) {
-            ctx.arc(x, y, size/2, 0, Math.PI*2);
-          } else {
-            ctx.fillRect(x - size/2, y - size/2, size, size);
-          }
+          if (Math.random() > 0.5) ctx.arc(x, y, size/2, 0, Math.PI*2);
+          else ctx.fillRect(x - size/2, y - size/2, size, size);
           ctx.fill();
         }
         return canvas.toDataURL('image/png');
       }
+      window.generateRandomAvatar = () => {
+        myAvatarDataUrl = generateRandomAvatar();
+        avatarPreview.src = myAvatarDataUrl;
+      };
 
-      // 监听头像上传
       document.getElementById('avatarInput').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = () => {
-          // 缩放图片到 100x100 以内
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
@@ -528,53 +531,13 @@
         reader.readAsDataURL(file);
       });
 
-      window.generateRandomAvatar = () => {
-        myAvatarDataUrl = generateRandomAvatar();
-        avatarPreview.src = myAvatarDataUrl;
-      };
-
       const $ = id => document.getElementById(id);
-      const hostIdInput = $('hostIdInput');
       const createBtn = $('createBtn'), joinBtn = $('joinBtn'), leaveBtn = $('leaveBtn');
-      const myPeerIdSpan = $('myPeerId'), inviteSection = $('inviteSection'), inviteLinkInput = $('inviteLinkInput');
+      const inviteSection = $('inviteSection'), inviteLinkInput = $('inviteLinkInput');
       const userListDiv = $('userList'), chatBox = $('chatBox'), messageInput = $('messageInput'), sendBtn = $('sendBtn');
       const emojiBtn = $('emojiBtn'), imageInput = $('imageInput'), fileInput = $('fileInput');
       const imageBtn = $('imageBtn'), fileBtn = $('fileBtn');
       const toolbar = $('toolbar');
-
-      // ---- 主题 ----
-      const themeToggle = $('themeToggle');
-      function applyTheme(mode) {
-        document.body.classList.remove('light', 'dark');
-        if (mode === 'dark') document.body.classList.add('dark');
-        else if (mode === 'light') document.body.classList.add('light');
-      }
-      const savedTheme = localStorage.getItem('chat-theme');
-      if (savedTheme === 'dark' || savedTheme === 'light') {
-        applyTheme(savedTheme);
-      } else {
-        document.body.classList.remove('light', 'dark');
-      }
-      themeToggle.addEventListener('click', () => {
-        const current = document.body.classList.contains('dark') ? 'dark' :
-                        document.body.classList.contains('light') ? 'light' : 'auto';
-        let newMode;
-        if (current === 'dark') newMode = 'light';
-        else if (current === 'light') newMode = 'auto';
-        else newMode = 'dark';
-        if (newMode === 'auto') {
-          document.body.classList.remove('light', 'dark');
-          localStorage.removeItem('chat-theme');
-        } else {
-          applyTheme(newMode);
-          localStorage.setItem('chat-theme', newMode);
-        }
-      });
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-        if (!localStorage.getItem('chat-theme')) {
-          document.body.classList.remove('light', 'dark');
-        }
-      });
 
       // 标题闪烁
       let originalTitle = document.title, unread = false, flashInterval = null;
@@ -585,22 +548,14 @@
       function addChatMsg(sender, text, avatar, isSelf) {
         const row = document.createElement('div');
         row.className = `message-row ${isSelf ? 'sent' : 'received'}`;
-        const img = document.createElement('img');
-        img.src = avatar || generateRandomAvatar();
-        img.className = 'avatar';
-        const bubble = document.createElement('div');
-        bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
+        const img = document.createElement('img'); img.src = avatar || generateRandomAvatar(); img.className = 'avatar';
+        const bubble = document.createElement('div'); bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
         const nameSpan = document.createElement('span'); nameSpan.className='sender-name'; nameSpan.textContent=sender;
         bubble.appendChild(nameSpan);
         const content = document.createElement('span'); content.textContent = text;
         bubble.appendChild(content);
-        if (isSelf) {
-          row.appendChild(bubble);
-          row.appendChild(img);
-        } else {
-          row.appendChild(img);
-          row.appendChild(bubble);
-        }
+        if (isSelf) { row.appendChild(bubble); row.appendChild(img); }
+        else { row.appendChild(img); row.appendChild(bubble); }
         chatBox.appendChild(row);
         chatBox.scrollTop = chatBox.scrollHeight;
         if (!isSelf && document.hidden) startTitleFlash();
@@ -608,23 +563,15 @@
       function addImageMsg(sender, dataUrl, avatar, isSelf) {
         const row = document.createElement('div');
         row.className = `message-row ${isSelf ? 'sent' : 'received'}`;
-        const img = document.createElement('img');
-        img.src = avatar || generateRandomAvatar();
-        img.className = 'avatar';
-        const bubble = document.createElement('div');
-        bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
+        const img = document.createElement('img'); img.src = avatar || generateRandomAvatar(); img.className = 'avatar';
+        const bubble = document.createElement('div'); bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
         const nameSpan = document.createElement('span'); nameSpan.className='sender-name'; nameSpan.textContent=sender;
         bubble.appendChild(nameSpan);
         const image = document.createElement('img'); image.src = dataUrl;
         image.addEventListener('click', () => showLightbox(dataUrl));
         bubble.appendChild(image);
-        if (isSelf) {
-          row.appendChild(bubble);
-          row.appendChild(img);
-        } else {
-          row.appendChild(img);
-          row.appendChild(bubble);
-        }
+        if (isSelf) { row.appendChild(bubble); row.appendChild(img); }
+        else { row.appendChild(img); row.appendChild(bubble); }
         chatBox.appendChild(row);
         chatBox.scrollTop = chatBox.scrollHeight;
         if (!isSelf && document.hidden) startTitleFlash();
@@ -632,22 +579,14 @@
       function addFileMsg(sender, fileName, fileUrl, fileSize, avatar, isSelf) {
         const row = document.createElement('div');
         row.className = `message-row ${isSelf ? 'sent' : 'received'}`;
-        const img = document.createElement('img');
-        img.src = avatar || generateRandomAvatar();
-        img.className = 'avatar';
-        const bubble = document.createElement('div');
-        bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
+        const img = document.createElement('img'); img.src = avatar || generateRandomAvatar(); img.className = 'avatar';
+        const bubble = document.createElement('div'); bubble.className = `message ${isSelf ? 'sent' : 'received'}`;
         const nameSpan = document.createElement('span'); nameSpan.className='sender-name'; nameSpan.textContent=sender;
         bubble.appendChild(nameSpan);
         const link = document.createElement('a'); link.href=fileUrl; link.download=fileName; link.className='file-download';
         link.textContent=`📄 ${fileName} (${formatSize(fileSize)})`; bubble.appendChild(link);
-        if (isSelf) {
-          row.appendChild(bubble);
-          row.appendChild(img);
-        } else {
-          row.appendChild(img);
-          row.appendChild(bubble);
-        }
+        if (isSelf) { row.appendChild(bubble); row.appendChild(img); }
+        else { row.appendChild(img); row.appendChild(bubble); }
         chatBox.appendChild(row);
         chatBox.scrollTop = chatBox.scrollHeight;
         if (!isSelf && document.hidden) startTitleFlash();
@@ -655,8 +594,8 @@
       function formatSize(bytes) {
         if (bytes < 1024) return bytes + ' B';
         else if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
-        else if (bytes < 1048576*1024) return (bytes/1048576).toFixed(1) + ' MB';
-        else return (bytes/(1048576*1024)).toFixed(1) + ' GB';
+        else if (bytes < 1073741824) return (bytes/1048576).toFixed(1) + ' MB';
+        else return (bytes/1073741824).toFixed(2) + ' GB';
       }
       function startTitleFlash() {
         if (unread) return; unread = true;
@@ -671,7 +610,6 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden && unread) stopTitleFlash();
       });
-
       function showLightbox(src) {
         const existing = document.querySelector('.image-lightbox');
         if (existing) existing.remove();
@@ -742,57 +680,68 @@
         stopHeartbeat(conn);
         updateUserList();
         if (isHost) {
-          for (let [,c] of connections) {
-            if (c.open) c.send({type:'user-lost', id:peerId, nickname:remoteNick});
-          }
+          for (let [,c] of connections) if (c.open) c.send({type:'user-lost', id:peerId, nickname:remoteNick});
         }
       }
 
-      // 文件/图片发送 (with progress)
+      // 文件传输（并发分片，加速）
       async function sendFile(file, forceFile = false) {
         const fileId = Date.now() + '-' + Math.random().toString(36).substr(2,6);
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-        // 创建进度条消息
-        const progressRow = document.createElement('div');
-        progressRow.className = 'message-row sent';
-        const bubble = document.createElement('div');
-        bubble.className = 'message sent';
+        const totalChunks = Math.ceil(file.size / SAFE_CHUNK_SIZE);
+        // 进度条 UI
+        const row = document.createElement('div'); row.className = 'message-row sent';
+        const bubble = document.createElement('div'); bubble.className = 'message sent';
         bubble.innerHTML = `<span class="sender-name">${nickname}</span>
           <div>📤 发送中: ${file.name} (${formatSize(file.size)})</div>
           <div class="progress-bar"><div class="progress-fill" id="progress-${fileId}" style="width:0%"></div></div>`;
-        progressRow.appendChild(bubble);
-        const avatarImg = document.createElement('img');
-        avatarImg.src = myAvatarDataUrl;
-        avatarImg.className = 'avatar';
-        progressRow.appendChild(avatarImg);
-        chatBox.appendChild(progressRow);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        const ava = document.createElement('img'); ava.src = myAvatarDataUrl; ava.className = 'avatar';
+        row.appendChild(bubble); row.appendChild(ava);
+        chatBox.appendChild(row); chatBox.scrollTop = chatBox.scrollHeight;
 
-        const updateProgress = (percent) => {
+        let completed = 0;
+        const updateProgress = () => {
+          const percent = (completed / totalChunks) * 100;
           const fill = document.getElementById(`progress-${fileId}`);
           if (fill) fill.style.width = percent + '%';
         };
 
-        const arrayBuffer = await file.arrayBuffer();
+        const buffer = await file.arrayBuffer();
+        // 准备所有分片数据
+        const chunks = [];
         for (let i = 0; i < totalChunks; i++) {
-          const start = i * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, arrayBuffer.byteLength);
-          const chunk = arrayBuffer.slice(start, end);
-          const base64 = arrayBufferToBase64(chunk);
-          const msg = {
-            type: 'file', fileId, fileName: file.name, fileSize: file.size,
+          const start = i * SAFE_CHUNK_SIZE;
+          const end = Math.min(start + SAFE_CHUNK_SIZE, buffer.byteLength);
+          const chunkBuffer = buffer.slice(start, end);
+          const base64 = arrayBufferToBase64(chunkBuffer);
+          chunks.push({
+            type: 'file',
+            fileId, fileName: file.name, fileSize: file.size,
             mimeType: file.type || 'application/octet-stream',
             chunkIndex: i, totalChunks,
             data: base64,
             displayAsFile: forceFile
-          };
-          for (let conn of connections.values()) if (conn.open) conn.send(msg);
-          updateProgress(((i+1)/totalChunks)*100);
-          // 让浏览器有机会更新 UI
+          });
+        }
+
+        // 并发发送
+        const sendPromises = [];
+        for (let i = 0; i < totalChunks; i += CONCURRENT_CHUNKS) {
+          const batch = chunks.slice(i, i + CONCURRENT_CHUNKS).map(msg => {
+            return new Promise(resolve => {
+              // 发送给所有连接
+              for (let conn of connections.values()) if (conn.open) conn.send(msg);
+              completed++;
+              updateProgress();
+              resolve();
+            });
+          });
+          await Promise.all(batch);
+          // 每批发完让出主线程
           await new Promise(r => setTimeout(r, 0));
         }
-        // 发送完成，移除进度条消息，替换为最终消息
-        progressRow.remove();
+
+        // 移除进度条，显示最终消息
+        row.remove();
         if (file.type.startsWith('image/') && !forceFile) {
           const reader = new FileReader();
           reader.onload = () => addImageMsg(nickname, reader.result, myAvatarDataUrl, true);
@@ -801,7 +750,6 @@
           addFileMsg(nickname, file.name, '#', file.size, myAvatarDataUrl, true);
         }
       }
-
       function arrayBufferToBase64(buffer) {
         let binary = '';
         const bytes = new Uint8Array(buffer);
@@ -820,44 +768,31 @@
         if (!fileBuffers.has(fileId)) {
           fileBuffers.set(fileId, {
             fileName, fileSize, mimeType,
-            chunks: new Map(),
-            totalChunks,
-            sender,
-            senderAvatar,
-            displayAsFile,
+            chunks: new Map(), totalChunks,
+            sender, senderAvatar, displayAsFile,
             progressRow: null
           });
-          // 创建接收进度条消息
-          const row = document.createElement('div');
-          row.className = 'message-row received';
-          const avatarImg = document.createElement('img');
-          avatarImg.src = senderAvatar || generateRandomAvatar();
-          avatarImg.className = 'avatar';
-          const bubble = document.createElement('div');
-          bubble.className = 'message received';
+          const row = document.createElement('div'); row.className = 'message-row received';
+          const ava = document.createElement('img'); ava.src = senderAvatar || generateRandomAvatar(); ava.className = 'avatar';
+          const bubble = document.createElement('div'); bubble.className = 'message received';
           bubble.innerHTML = `<span class="sender-name">${sender}</span>
             <div>📥 接收中: ${fileName} (${formatSize(fileSize)})</div>
             <div class="progress-bar"><div class="progress-fill" id="recv-progress-${fileId}" style="width:0%"></div></div>`;
-          row.appendChild(avatarImg);
-          row.appendChild(bubble);
-          chatBox.appendChild(row);
-          chatBox.scrollTop = chatBox.scrollHeight;
+          row.appendChild(ava); row.appendChild(bubble);
+          chatBox.appendChild(row); chatBox.scrollTop = chatBox.scrollHeight;
           fileBuffers.get(fileId).progressRow = row;
         }
         const buf = fileBuffers.get(fileId);
         buf.chunks.set(chunkIndex, base64);
-        // 更新进度
         const percent = (buf.chunks.size / totalChunks) * 100;
         const fill = document.getElementById(`recv-progress-${fileId}`);
         if (fill) fill.style.width = percent + '%';
 
         if (buf.chunks.size === totalChunks) {
-          // 移除进度条消息
           if (buf.progressRow) buf.progressRow.remove();
           const chunksArray = [];
           for (let i = 0; i < totalChunks; i++) chunksArray.push(base64ToArrayBuffer(buf.chunks.get(i)));
-          const totalLength = chunksArray.reduce((acc, arr) => acc + arr.byteLength, 0);
-          const merged = new Uint8Array(totalLength);
+          const merged = new Uint8Array(chunksArray.reduce((acc, arr) => acc + arr.byteLength, 0));
           let offset = 0;
           for (const arr of chunksArray) { merged.set(new Uint8Array(arr), offset); offset += arr.byteLength; }
           const blob = new Blob([merged], { type: mimeType });
@@ -871,7 +806,7 @@
         }
       }
 
-      // 表情选择器
+      // 表情
       let emojiPickerInstance = null;
       emojiBtn.addEventListener('click', () => {
         if (!emojiPickerInstance) {
@@ -880,19 +815,12 @@
           emojiPickerInstance.style.bottom = '50px';
           emojiPickerInstance.style.left = '0';
           emojiPickerInstance.style.zIndex = '100';
-          emojiPickerInstance.style.maxWidth = '360px';
           toolbar.style.position = 'relative';
           toolbar.appendChild(emojiPickerInstance);
           emojiPickerInstance.addEventListener('emoji-click', event => {
             const emoji = event.detail.unicode;
-            if (emoji) {
-              messageInput.value += emoji;
-              messageInput.focus();
-            }
-            if (emojiPickerInstance) {
-              emojiPickerInstance.remove();
-              emojiPickerInstance = null;
-            }
+            if (emoji) { messageInput.value += emoji; messageInput.focus(); }
+            if (emojiPickerInstance) { emojiPickerInstance.remove(); emojiPickerInstance = null; }
           });
         } else {
           emojiPickerInstance.remove();
@@ -907,17 +835,21 @@
       });
 
       imageBtn.addEventListener('click', () => imageInput.click());
-      imageInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (file) sendFile(file, false); imageInput.value=''; });
+      imageInput.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) sendFile(f, false); imageInput.value=''; });
       fileBtn.addEventListener('click', () => fileInput.click());
-      fileInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (file) sendFile(file, true); fileInput.value=''; });
+      fileInput.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) sendFile(f, true); fileInput.value=''; });
 
-      // 连接处理 (增加头像传递)
+      // 连接处理
       function setupConnection(conn) {
         conn._receivedLeave = false;
         conn._heartbeatLost = false;
         conn.on('open', () => {
           conn.send({type:'intro', nickname:nickname, avatar: myAvatarDataUrl});
           startHeartbeat(conn);
+          if (!isHost && myPeerId && conn.peer) {
+            inviteLinkInput.textContent = `${location.origin}${location.pathname}?host=${conn.peer}`;
+            inviteSection.style.display = 'block';
+          }
         });
         conn.on('data', data => {
           if (data.type === 'pong') { conn._awaitingPong = false; return; }
@@ -942,7 +874,7 @@
               connections.set(conn.peer, conn);
               updateUserList(); addSystemMsg(`${newNick} 加入了房间`);
               const list = [{id:myPeerId, nickname:nickname, avatar: myAvatarDataUrl}];
-              for (let [id,c] of connections) if (c.open && id !== conn.peer) list.push({id, nickname: c.metadata?.nickname || id.substring(0,8), avatar: c.metadata?.avatar});
+              for (let [id,c] of connections) if (c.open && id !== conn.peer) list.push({id, nickname: c.metadata?.nickname, avatar: c.metadata?.avatar});
               conn.send({type:'member-list', members:list});
               for (let [id,c] of connections) if (id !== conn.peer && c.open) c.send({type:'new-member', id:conn.peer, nickname:newNick, avatar: myAvatarDataUrl});
             } else {
@@ -951,15 +883,13 @@
             }
           }
           else if (data.type === 'chat') {
-            const senderAvatar = conn.metadata?.avatar;
-            addChatMsg(data.sender, data.text, senderAvatar, false);
+            addChatMsg(data.sender, data.text, conn.metadata?.avatar, false);
           }
           else if (data.type === 'member-list') {
             data.members.forEach(m => {
               if (m.id === myPeerId || connections.has(m.id)) return;
               const nc = peer.connect(m.id, {reliable:true, metadata:{nickname:nickname}});
               setupConnection(nc);
-              // 可以临时存储头像，等到 open 后再设置
             });
             updateUserList();
           }
@@ -1018,12 +948,12 @@
         nickname = prompt('设置昵称:', nickname) || nickname;
         peer = new Peer();
         peer.on('open', id => {
-          myPeerId = id; myPeerIdSpan.textContent = id; isHost = true;
+          myPeerId = id; isHost = true;
           inviteLinkInput.textContent = `${location.origin}${location.pathname}?host=${id}`;
           inviteSection.style.display = 'block';
           addSystemMsg(`房间已创建，分享邀请链接给朋友`);
           createBtn.disabled = joinBtn.disabled = true; leaveBtn.disabled = false;
-          hostIdInput.disabled = true; messageInput.disabled = sendBtn.disabled = false;
+          messageInput.disabled = sendBtn.disabled = false;
         });
         peer.on('connection', conn => setupConnection(conn));
         peer.on('error', err => addSystemMsg(`错误: ${err.type}`));
@@ -1031,17 +961,16 @@
       }
       function joinRoom(hostId) {
         leaveRoom();
-        if (!hostId) hostId = hostIdInput.value.trim();
-        if (!hostId) return alert('请输入房主ID');
+        if (!hostId) return;
         nickname = prompt('设置昵称:', nickname) || nickname;
         peer = new Peer();
         peer.on('open', myId => {
-          myPeerId = myId; myPeerIdSpan.textContent = myId; isHost = false;
+          myPeerId = myId; isHost = false;
           addSystemMsg(`连接房主...`);
           const conn = peer.connect(hostId, {reliable:true, metadata:{nickname:nickname}});
           setupConnection(conn);
           createBtn.disabled = joinBtn.disabled = true; leaveBtn.disabled = false;
-          hostIdInput.disabled = true; messageInput.disabled = sendBtn.disabled = false;
+          messageInput.disabled = sendBtn.disabled = false;
         });
         peer.on('connection', conn => setupConnection(conn));
         peer.on('error', err => addSystemMsg(`错误: ${err.type}`));
@@ -1053,11 +982,11 @@
         for (let conn of connections.values()) { stopHeartbeat(conn); conn.close(); }
         connections.clear();
         if (peer) { peer.destroy(); peer = null; }
-        myPeerIdSpan.textContent = '——'; inviteSection.style.display = 'none';
+        inviteSection.style.display = 'none';
         userListDiv.innerHTML = '<span style="color: var(--text-secondary);">暂无</span>';
         chatBox.innerHTML = '<div class="message system">等待加入房间...</div>';
         createBtn.disabled = joinBtn.disabled = false; leaveBtn.disabled = true;
-        hostIdInput.disabled = false; messageInput.disabled = sendBtn.disabled = true;
+        messageInput.disabled = sendBtn.disabled = true;
         isHost = false;
       }
 
@@ -1080,15 +1009,17 @@
         messageInput.style.height = 'auto';
         messageInput.style.height = messageInput.scrollHeight + 'px';
       });
-      window.copyId = () => myPeerIdSpan.textContent !== '——' && navigator.clipboard.writeText(myPeerIdSpan.textContent);
       window.copyInviteLink = () => navigator.clipboard.writeText(inviteLinkInput.textContent);
       createBtn.addEventListener('click', createRoom);
-      joinBtn.addEventListener('click', () => joinRoom(null));
+      joinBtn.addEventListener('click', () => {
+        const hostId = prompt('请输入房主 Peer ID：');
+        if (hostId) joinRoom(hostId.trim());
+      });
       leaveBtn.addEventListener('click', () => { if (confirm('退出房间？')) leaveRoom(); });
 
       const params = new URLSearchParams(location.search);
       const hostParam = params.get('host');
-      if (hostParam) { hostIdInput.value = hostParam; setTimeout(() => joinRoom(hostParam), 500); }
+      if (hostParam) setTimeout(() => joinRoom(hostParam.trim()), 500);
     })();
   </script>
 </body>
