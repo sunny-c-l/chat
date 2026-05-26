@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>多人房间</title>
   <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+  <!-- 表情选择器 -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+  <!-- Font Awesome 图标 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+
     :root {
       --bg: #f5f5f5;
       --surface: #ffffff;
@@ -29,6 +35,59 @@
       --input-bg: #fff;
       --input-border: #ccc;
       --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --toolbar-bg: #f9f9f9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e2f;
+        --surface: #2a2a3d;
+        --border: #3f3f5e;
+        --text: #e0e0e0;
+        --text-secondary: #aaa;
+        --accent: #4dd0e1;
+        --accent-hover: #26c6da;
+        --danger: #ef5350;
+        --danger-hover: #e53935;
+        --join: #66bb6a;
+        --join-hover: #43a047;
+        --chat-bg: #12121f;
+        --msg-sent: #1e3a3a;
+        --msg-received: #374151;
+        --system-bg: #1f2937;
+        --system-text: #9ca3af;
+        --self-badge: #4dd0e1;
+        --user-badge-bg: #374151;
+        --user-badge-text: #d1d5db;
+        --input-bg: #12121f;
+        --input-border: #3f3f5e;
+        --shadow: 0 2px 12px rgba(0,0,0,0.4);
+        --toolbar-bg: #1e1e2f;
+      }
+    }
+    body.light {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --border: #d0d0d0;
+      --text: #1a1a1a;
+      --text-secondary: #555;
+      --accent: #2b7a78;
+      --accent-hover: #1f5f5d;
+      --danger: #c0392b;
+      --danger-hover: #a93226;
+      --join: #27ae60;
+      --join-hover: #1e8449;
+      --chat-bg: #f0f2f5;
+      --msg-sent: #dcf8c6;
+      --msg-received: #ffffff;
+      --system-bg: #e9ecef;
+      --system-text: #6c757d;
+      --self-badge: #2b7a78;
+      --user-badge-bg: #e0e0e0;
+      --user-badge-text: #333;
+      --input-bg: #fff;
+      --input-border: #ccc;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --toolbar-bg: #f9f9f9;
     }
     body.dark {
       --bg: #1e1e2f;
@@ -53,11 +112,12 @@
       --input-bg: #12121f;
       --input-border: #3f3f5e;
       --shadow: 0 2px 12px rgba(0,0,0,0.4);
+      --toolbar-bg: #1e1e2f;
     }
 
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Segoe UI', system-ui, 'Noto Color Emoji', sans-serif;
       background: var(--bg);
       color: var(--text);
       height: 100vh;
@@ -66,11 +126,12 @@
       align-items: center;
       padding: 20px;
       transition: background 0.3s, color 0.3s;
+      position: relative;
     }
     .container {
       display: flex;
       width: 100%;
-      max-width: 1100px;
+      max-width: 1200px;
       height: 90vh;
       background: var(--surface);
       border-radius: 20px;
@@ -79,7 +140,6 @@
       transition: background 0.3s;
     }
 
-    /* ---- 左侧面板 ---- */
     .sidebar {
       width: 300px;
       padding: 20px;
@@ -89,20 +149,9 @@
       gap: 20px;
       background: var(--surface);
     }
-    .sidebar h2 {
-      font-size: 1.2rem;
-      font-weight: 600;
-      color: var(--text);
-    }
-    .input-group {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .input-group label {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-    }
+    .sidebar h2 { font-size: 1.2rem; font-weight: 600; color: var(--text); }
+    .input-group { display: flex; flex-direction: column; gap: 8px; }
+    .input-group label { font-size: 0.85rem; color: var(--text-secondary); }
     .input, .btn {
       padding: 10px 14px;
       border-radius: 10px;
@@ -127,29 +176,19 @@
     .btn-danger:hover { background: var(--danger-hover); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .id-display {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    }
+    .id-display { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .my-id-text {
       font-family: monospace; background: var(--input-bg);
       padding: 6px 12px; border-radius: 8px; font-size: 14px;
-      border: 1px solid var(--border);
-      word-break: break-all;
+      border: 1px solid var(--border); word-break: break-all;
     }
-
-    .invite-box {
-      display: flex; flex-direction: column; gap: 6px;
-    }
+    .invite-box { display: flex; flex-direction: column; gap: 6px; }
     .invite-url {
       background: var(--input-bg); border: 1px solid var(--border);
       border-radius: 8px; padding: 8px 10px; font-size: 13px;
       color: var(--accent); word-break: break-all;
     }
-
-    .user-list {
-      display: flex; flex-wrap: wrap; gap: 6px;
-      max-height: 150px; overflow-y: auto;
-    }
+    .user-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto; }
     .user-badge {
       background: var(--user-badge-bg); color: var(--user-badge-text);
       padding: 4px 12px; border-radius: 20px; font-size: 13px;
@@ -160,9 +199,7 @@
       background: transparent; border: none; color: #f87171;
       font-weight: bold; cursor: pointer; padding: 0 2px;
     }
-    .kick-btn:hover { color: #ef4444; }
 
-    /* ---- 右侧聊天区域 ---- */
     .chat-area {
       flex: 1;
       display: flex;
@@ -187,17 +224,8 @@
       white-space: pre-wrap;
       font-size: 14px;
     }
-    .message.sent {
-      align-self: flex-end;
-      background: var(--msg-sent);
-      color: var(--text);
-    }
-    .message.received {
-      align-self: flex-start;
-      background: var(--msg-received);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
+    .message.sent { align-self: flex-end; background: var(--msg-sent); color: var(--text); }
+    .message.received { align-self: flex-start; background: var(--msg-received); color: var(--text); border: 1px solid var(--border); }
     .message.system {
       align-self: center;
       background: var(--system-bg);
@@ -207,17 +235,76 @@
       max-width: 85%;
       text-align: center;
     }
-    .sender-name {
-      font-size: 12px;
-      margin-bottom: 4px;
-      opacity: 0.8;
-      display: block;
-      font-weight: 500;
+    .sender-name { font-size: 12px; margin-bottom: 4px; opacity: 0.8; display: block; font-weight: 500; }
+    .message img {
+      max-width: 240px;
+      max-height: 240px;
+      border-radius: 12px;
+      margin-top: 4px;
+      object-fit: cover;
+      cursor: pointer;               /* 鼠标变手型，暗示可点击 */
+      transition: transform 0.2s;
     }
+    .message img:hover {
+      transform: scale(1.02);
+    }
+    .file-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      margin-top: 4px;
+      font-size: 13px;
+    }
+
+    /* 图片放大浮层 */
+    .image-lightbox {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      cursor: pointer;
+    }
+    .image-lightbox img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 12px;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 8px 20px;
+      background: var(--toolbar-bg);
+      border-top: 1px solid var(--border);
+      position: relative;
+    }
+    .toolbar-btn {
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+      color: var(--text);
+      transition: background 0.2s;
+    }
+    .toolbar-btn:hover { background: var(--user-badge-bg); }
+
     .input-area {
       display: flex;
       gap: 10px;
-      padding: 15px 20px;
+      padding: 10px 20px 15px;
       background: var(--surface);
       border-top: 1px solid var(--border);
     }
@@ -234,11 +321,9 @@
       font-size: 14px;
       line-height: 1.4;
       outline: none;
-      transition: border-color 0.2s;
     }
     #messageInput:focus { border-color: var(--accent); }
 
-    /* 主题切换按钮 */
     .theme-toggle {
       position: absolute;
       top: 20px;
@@ -254,23 +339,45 @@
       cursor: pointer;
       font-size: 18px;
       box-shadow: var(--shadow);
+      z-index: 20;
     }
+
+    .github-link {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 24px;
+      box-shadow: var(--shadow);
+      transition: all 0.2s;
+      z-index: 20;
+    }
+    .github-link:hover { transform: scale(1.1); color: var(--accent); }
   </style>
 </head>
 <body class="light">
-  <!-- 主题切换按钮（全局） -->
   <div class="theme-toggle" id="themeToggle" title="切换深色/浅色模式">🌓</div>
+  
+  <a href="https://github.com/sunny-c-l/chat/" target="_blank" class="github-link" title="GitHub 仓库">
+    <i class="fab fa-github"></i>
+  </a>
 
   <div class="container">
-    <!-- 左侧控制面板 -->
     <div class="sidebar">
       <h2>⚡ 房间控制</h2>
-
       <div class="input-group">
         <label>房主 Peer ID</label>
         <input class="input" type="text" id="hostIdInput" placeholder="输入房主 ID（不填则创建）">
       </div>
-
       <div style="display: flex; gap: 8px;">
         <button class="btn btn-accent" id="createBtn">🏠 创建房间</button>
         <button class="btn btn-join" id="joinBtn">🚪 加入房间</button>
@@ -297,11 +404,17 @@
       </div>
     </div>
 
-    <!-- 右侧聊天 -->
     <div class="chat-area">
       <div class="chat-messages" id="chatBox">
         <div class="message system">等待加入房间...</div>
       </div>
+
+      <div class="toolbar" id="toolbar">
+        <button class="toolbar-btn" id="emojiBtn" title="表情">😀</button>
+        <button class="toolbar-btn" id="imageBtn" title="发送图片（显示为图片）">🖼️</button>
+        <button class="toolbar-btn" id="fileBtn" title="发送文件（图片也显示为文件）">📎</button>
+      </div>
+
       <div class="input-area">
         <textarea id="messageInput" placeholder="输入消息... (Shift+Enter 换行，Enter 发送)" disabled></textarea>
         <button class="btn btn-accent" id="sendBtn" disabled onclick="sendMessage()">发送</button>
@@ -309,30 +422,65 @@
     </div>
   </div>
 
+  <input type="file" id="imageInput" accept="image/*" style="display:none">
+  <input type="file" id="fileInput" style="display:none">
+
   <script>
     (() => {
       const PING_INTERVAL = 5000;
+      const CHUNK_SIZE = 15 * 1024;
 
       let peer = null, myPeerId = null;
       let nickname = 'User' + Math.floor(Math.random()*1000);
       let isHost = false;
       const connections = new Map();
+      const fileBuffers = new Map();
 
       const $ = id => document.getElementById(id);
       const hostIdInput = $('hostIdInput');
       const createBtn = $('createBtn'), joinBtn = $('joinBtn'), leaveBtn = $('leaveBtn');
       const myPeerIdSpan = $('myPeerId'), inviteSection = $('inviteSection'), inviteLinkInput = $('inviteLinkInput');
       const userListDiv = $('userList'), chatBox = $('chatBox'), messageInput = $('messageInput'), sendBtn = $('sendBtn');
+      const emojiBtn = $('emojiBtn'), imageInput = $('imageInput'), fileInput = $('fileInput');
+      const imageBtn = $('imageBtn'), fileBtn = $('fileBtn');
+      const toolbar = $('toolbar');
 
-      // 主题切换
+      // ---- 主题 ----
       const themeToggle = $('themeToggle');
+      function applyTheme(mode) {
+        document.body.classList.remove('light', 'dark');
+        if (mode === 'dark') document.body.classList.add('dark');
+        else if (mode === 'light') document.body.classList.add('light');
+      }
+      const savedTheme = localStorage.getItem('chat-theme');
+      if (savedTheme === 'dark' || savedTheme === 'light') {
+        applyTheme(savedTheme);
+      } else {
+        document.body.classList.remove('light', 'dark');
+      }
       themeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('dark');
+        const current = document.body.classList.contains('dark') ? 'dark' :
+                        document.body.classList.contains('light') ? 'light' : 'auto';
+        let newMode;
+        if (current === 'dark') newMode = 'light';
+        else if (current === 'light') newMode = 'auto';
+        else newMode = 'dark';
+        if (newMode === 'auto') {
+          document.body.classList.remove('light', 'dark');
+          localStorage.removeItem('chat-theme');
+        } else {
+          applyTheme(newMode);
+          localStorage.setItem('chat-theme', newMode);
+        }
+      });
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (!localStorage.getItem('chat-theme')) {
+          document.body.classList.remove('light', 'dark');
+        }
       });
 
       // 标题闪烁
       let originalTitle = document.title, unread = false, flashInterval = null;
-
       function addSystemMsg(text) {
         const d = document.createElement('div'); d.className='message system'; d.textContent=text;
         chatBox.appendChild(d); chatBox.scrollTop = chatBox.scrollHeight;
@@ -345,6 +493,31 @@
         d.appendChild(content);
         chatBox.appendChild(d); chatBox.scrollTop = chatBox.scrollHeight;
         if (!isSelf && document.hidden) startTitleFlash();
+      }
+      function addImageMsg(sender, dataUrl, isSelf) {
+        const d = document.createElement('div'); d.className=`message ${isSelf?'sent':'received'}`;
+        const nameSpan = document.createElement('span'); nameSpan.className='sender-name'; nameSpan.textContent=sender;
+        d.appendChild(nameSpan);
+        const img = document.createElement('img'); img.src = dataUrl;
+        // 点击放大
+        img.addEventListener('click', () => showLightbox(dataUrl));
+        d.appendChild(img);
+        chatBox.appendChild(d); chatBox.scrollTop = chatBox.scrollHeight;
+        if (!isSelf && document.hidden) startTitleFlash();
+      }
+      function addFileMsg(sender, fileName, fileUrl, fileSize, isSelf) {
+        const d = document.createElement('div'); d.className=`message ${isSelf?'sent':'received'}`;
+        const nameSpan = document.createElement('span'); nameSpan.className='sender-name'; nameSpan.textContent=sender;
+        d.appendChild(nameSpan);
+        const link = document.createElement('a'); link.href=fileUrl; link.download=fileName; link.className='file-download';
+        link.textContent=`📄 ${fileName} (${formatSize(fileSize)})`; d.appendChild(link);
+        chatBox.appendChild(d); chatBox.scrollTop = chatBox.scrollHeight;
+        if (!isSelf && document.hidden) startTitleFlash();
+      }
+      function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        else if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+        else return (bytes/1048576).toFixed(1) + ' MB';
       }
       function startTitleFlash() {
         if (unread) return; unread = true;
@@ -359,6 +532,19 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden && unread) stopTitleFlash();
       });
+
+      // 图片放大浮层
+      function showLightbox(src) {
+        const existing = document.querySelector('.image-lightbox');
+        if (existing) existing.remove();
+        const lb = document.createElement('div');
+        lb.className = 'image-lightbox';
+        const img = document.createElement('img');
+        img.src = src;
+        lb.appendChild(img);
+        lb.addEventListener('click', () => lb.remove());
+        document.body.appendChild(lb);
+      }
 
       function updateUserList() {
         userListDiv.innerHTML = '';
@@ -377,20 +563,18 @@
           userListDiv.appendChild(badge);
         }
       }
-
       function kickMember(peerId) {
         const conn = connections.get(peerId); if (!conn) return;
         try { conn.send({type:'kick'}); } catch(e) {}
         conn.close();
       }
-
       function sendLeaveToAll() {
         for (let conn of connections.values()) {
           if (conn.open) try { conn.send({type:'leave'}); } catch(e) {}
         }
       }
 
-      // ---- 心跳 ----
+      // 心跳
       function startHeartbeat(conn) {
         stopHeartbeat(conn);
         const sendPing = () => {
@@ -407,12 +591,10 @@
         sendPing();
         conn._pingInterval = setInterval(sendPing, PING_INTERVAL);
       }
-
       function stopHeartbeat(conn) {
         if (conn._pingInterval) { clearInterval(conn._pingInterval); conn._pingInterval = null; }
         conn._awaitingPong = false;
       }
-
       function handleConnectionLost(conn) {
         const peerId = conn.peer;
         if (!connections.has(peerId)) return;
@@ -428,24 +610,136 @@
         }
       }
 
-      // ---- 连接处理 ----
+      // 文件/图片发送（forceFile=true 表示即使图片也显示为文件）
+      async function sendFile(file, forceFile = false) {
+        const fileId = Date.now() + '-' + Math.random().toString(36).substr(2,6);
+        const arrayBuffer = await file.arrayBuffer();
+        const totalChunks = Math.ceil(arrayBuffer.byteLength / CHUNK_SIZE);
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, arrayBuffer.byteLength);
+          const chunk = arrayBuffer.slice(start, end);
+          const base64 = arrayBufferToBase64(chunk);
+          const msg = {
+            type: 'file', fileId, fileName: file.name, fileSize: file.size,
+            mimeType: file.type || 'application/octet-stream',
+            chunkIndex: i, totalChunks,
+            data: base64,
+            displayAsFile: forceFile       // 关键标记
+          };
+          for (let conn of connections.values()) if (conn.open) conn.send(msg);
+        }
+        // 发送方自己的显示
+        if (file.type.startsWith('image/') && !forceFile) {
+          const reader = new FileReader();
+          reader.onload = () => addImageMsg(nickname, reader.result, true);
+          reader.readAsDataURL(file);
+        } else {
+          addFileMsg(nickname, file.name, '#', file.size, true);
+        }
+      }
+      function arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      }
+      function base64ToArrayBuffer(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+      }
+      function handleFileChunkReceived(data, sender) {
+        const { fileId, fileName, fileSize, mimeType, chunkIndex, totalChunks, data: base64, displayAsFile } = data;
+        if (!fileBuffers.has(fileId)) {
+          fileBuffers.set(fileId, { fileName, fileSize, mimeType, chunks: new Map(), sender, displayAsFile });
+        }
+        const buf = fileBuffers.get(fileId);
+        buf.chunks.set(chunkIndex, base64);
+        if (buf.chunks.size === totalChunks) {
+          const chunksArray = [];
+          for (let i = 0; i < totalChunks; i++) chunksArray.push(base64ToArrayBuffer(buf.chunks.get(i)));
+          const totalLength = chunksArray.reduce((acc, arr) => acc + arr.byteLength, 0);
+          const merged = new Uint8Array(totalLength);
+          let offset = 0;
+          for (const arr of chunksArray) { merged.set(new Uint8Array(arr), offset); offset += arr.byteLength; }
+          const blob = new Blob([merged], { type: mimeType });
+          const url = URL.createObjectURL(blob);
+          // 根据标记决定显示图片还是文件
+          if (mimeType.startsWith('image/') && !buf.displayAsFile) {
+            addImageMsg(buf.sender, url, false);
+          } else {
+            addFileMsg(buf.sender, fileName, url, fileSize, false);
+          }
+          fileBuffers.delete(fileId);
+        }
+      }
+
+      // 表情选择器
+      let emojiPickerInstance = null;
+      emojiBtn.addEventListener('click', () => {
+        if (!emojiPickerInstance) {
+          emojiPickerInstance = document.createElement('emoji-picker');
+          emojiPickerInstance.style.position = 'absolute';
+          emojiPickerInstance.style.bottom = '50px';
+          emojiPickerInstance.style.left = '0';
+          emojiPickerInstance.style.zIndex = '100';
+          emojiPickerInstance.style.maxWidth = '360px';
+          toolbar.style.position = 'relative';
+          toolbar.appendChild(emojiPickerInstance);
+          emojiPickerInstance.addEventListener('emoji-click', event => {
+            const emoji = event.detail.unicode;
+            if (emoji) {
+              messageInput.value += emoji;
+              messageInput.focus();
+            }
+            if (emojiPickerInstance) {
+              emojiPickerInstance.remove();
+              emojiPickerInstance = null;
+            }
+          });
+        } else {
+          emojiPickerInstance.remove();
+          emojiPickerInstance = null;
+        }
+      });
+      document.addEventListener('click', (e) => {
+        if (emojiPickerInstance && !emojiPickerInstance.contains(e.target) && e.target !== emojiBtn) {
+          emojiPickerInstance.remove();
+          emojiPickerInstance = null;
+        }
+      });
+
+      // 按钮事件：图片按钮 forceFile=false，文件按钮 forceFile=true
+      imageBtn.addEventListener('click', () => imageInput.click());
+      imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) sendFile(file, false);
+        imageInput.value = '';
+      });
+      fileBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) sendFile(file, true);
+        fileInput.value = '';
+      });
+
+      // 连接处理
       function setupConnection(conn) {
         conn._receivedLeave = false;
         conn._heartbeatLost = false;
-
         conn.on('open', () => {
           conn.send({type:'intro', nickname:nickname});
           startHeartbeat(conn);
         });
-
         conn.on('data', data => {
           if (data.type === 'pong') { conn._awaitingPong = false; return; }
           if (data.type === 'ping') { if (conn.open) conn.send({type:'pong'}); return; }
           if (data.type === 'leave') {
             conn._receivedLeave = true;
             addSystemMsg(`${conn.metadata?.nickname || conn.peer.substring(0,8)} 离开了房间`);
-            conn.close();
-            return;
+            conn.close(); return;
           }
           if (data.type === 'intro') {
             conn.metadata = { nickname: data.nickname };
@@ -486,9 +780,7 @@
           }
           else if (data.type === 'kick') { alert('你已被房主踢出房间'); leaveRoom(); }
           else if (data.type === 'user-kicked') {
-            if (connections.has(data.id)) {
-              connections.get(data.id).close();
-            }
+            if (connections.has(data.id)) connections.get(data.id).close();
           }
           else if (data.type === 'user-lost') {
             if (connections.has(data.id)) {
@@ -498,6 +790,10 @@
               handleConnectionLost(c);
             }
           }
+          else if (data.type === 'file') {
+            const senderNick = conn.metadata?.nickname || conn.peer.substring(0,8);
+            handleFileChunkReceived(data, senderNick);
+          }
           else if (data.type === 'name-rejected') {
             alert(`加入失败：${data.reason}`);
             conn.close();
@@ -505,12 +801,10 @@
             leaveRoom();
           }
         });
-
         conn.on('close', () => {
           const remoteNick = conn.metadata?.nickname || conn.peer.substring(0,8);
           const peerId = conn.peer;
           stopHeartbeat(conn);
-
           if (!conn._receivedLeave) {
             if (connections.has(peerId)) {
               addSystemMsg(`${remoteNick} 连接已丢失`);
@@ -525,11 +819,10 @@
             updateUserList();
           }
         });
-
-        conn.on('error', err => { if (conn.open) conn.close(); });
+        conn.on('error', () => { if (conn.open) conn.close(); });
       }
 
-      // ---- 房间操作 ----
+      // 房间操作
       function createRoom() {
         leaveRoom();
         nickname = prompt('设置昵称:', nickname) || nickname;
@@ -546,7 +839,6 @@
         peer.on('error', err => addSystemMsg(`错误: ${err.type}`));
         peer.on('disconnected', () => { addSystemMsg('信令断线，重连中...'); peer.reconnect(); });
       }
-
       function joinRoom(hostId) {
         leaveRoom();
         if (!hostId) hostId = hostIdInput.value.trim();
@@ -565,7 +857,6 @@
         peer.on('error', err => addSystemMsg(`错误: ${err.type}`));
         peer.on('disconnected', () => { addSystemMsg('信令断线，重连中...'); peer.reconnect(); });
       }
-
       function leaveRoom() {
         stopTitleFlash();
         sendLeaveToAll();
@@ -580,7 +871,6 @@
         isHost = false;
       }
 
-      // 多行消息发送
       window.sendMessage = () => {
         const msg = messageInput.value;
         if (!msg.trim()) return;
@@ -590,7 +880,6 @@
         messageInput.value = '';
         messageInput.style.height = 'auto';
       };
-
       messageInput.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
@@ -601,15 +890,12 @@
         messageInput.style.height = 'auto';
         messageInput.style.height = messageInput.scrollHeight + 'px';
       });
-
       window.copyId = () => myPeerIdSpan.textContent !== '——' && navigator.clipboard.writeText(myPeerIdSpan.textContent);
       window.copyInviteLink = () => navigator.clipboard.writeText(inviteLinkInput.textContent);
-
       createBtn.addEventListener('click', createRoom);
       joinBtn.addEventListener('click', () => joinRoom(null));
       leaveBtn.addEventListener('click', () => { if (confirm('退出房间？')) leaveRoom(); });
 
-      // URL 自动加入
       const params = new URLSearchParams(location.search);
       const hostParam = params.get('host');
       if (hostParam) { hostIdInput.value = hostParam; setTimeout(() => joinRoom(hostParam), 500); }
